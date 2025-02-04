@@ -54,6 +54,9 @@ def split_and_buffer(infile, lower, upper):
             length = end - start
             if length < lower:
                 buffer = int((lower - length) / 2)
+                # avoid infinite loop when buffer ends up being zero (because length is 1 less than lower)
+                if buffer < 1:
+                    buffer = 1
                 new_start = start - buffer
                 new_end = end + buffer
                 new_file_contents = new_file_contents + (f'{chrom}\t{new_start}\t{new_end}\n')
@@ -70,29 +73,54 @@ def split_and_buffer(infile, lower, upper):
     return new_file_contents
 
 
-def check_min_max():
+def get_stats(bed_file):
     # make df
-    with open("merged.bed", "r") as fh:
+    with open(bed_file, "r") as fh:
         df = pd.read_csv(fh, sep="\t", header=None)
     # make length column
     df[3] = df[2] - df[1]
-    # return min and max
-    return (df.min(axis=0)[3], df.max(axis=0)[3])
+    # calculate stats
+    min = df.min(axis=0)[3]
+    max = df.max(axis=0)[3]
+    mean = df[3].mean(axis=0)
+    median = df[3].median(axis=0)
+    std_dev = df[3].std(axis=0)
+    # return stats
+    return (min, max, mean, median, std_dev)
 
 
 def main():
+    # print stats of input file
+    stats = get_stats(INFILE)
+    print(
+        "Input file stats:\n"
+        f"\tMin: {stats[0]}\n"
+        f"\tMax: {stats[1]}\n"
+        f"\tMean: {stats[2]}\n"
+        f"\tMedian: {stats[3]}\n"
+        f"\tStd Deviation: {stats[4]}\n"
+    )
     # round 1
     file_content = split_and_buffer(INFILE, LOWER_LIMIT, UPPER_LIMIT)
     write_targets_bed(file_content)
     merge_overlaps()
 
     # iterate if needed
-    while ( check_min_max()[0] < LOWER_LIMIT or check_min_max()[1] > UPPER_LIMIT ):
-        subprocess.run("cat merged.bed | wc -l", shell=True)
-        print(check_min_max())
+    while ( get_stats("merged.bed")[0] < LOWER_LIMIT or get_stats("merged.bed")[1] > UPPER_LIMIT ):
         file_content = split_and_buffer("merged.bed", LOWER_LIMIT, UPPER_LIMIT)
         write_targets_bed(file_content)
         merge_overlaps()
+
+    # report final output stats
+    stats = get_stats("merged.bed")
+    print(
+        "Output file stats:\n"
+        f"\tMin: {stats[0]}\n"
+        f"\tMax: {stats[1]}\n"
+        f"\tMean: {stats[2]}\n"
+        f"\tMedian: {stats[3]}\n"
+        f"\tStd Deviation: {stats[4]}\n"
+    )
 
     # create final output
     fname = f"{OUTFILE_PREFIX}_{LOWER_LIMIT}_{UPPER_LIMIT}.bed"
