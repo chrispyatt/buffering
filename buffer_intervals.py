@@ -8,13 +8,15 @@ Script to iteratively split, merge, & buffer an intervals BED file to conform to
 
 import sys
 import subprocess
+import pandas as pd
 
 try:
-	INFILE = sys.argv[1]
-	LOWER_LIMIT = int(sys.argv[2])
-	UPPER_LIMIT = int(sys.argv[3])
+    INFILE = sys.argv[1]
+    LOWER_LIMIT = int(sys.argv[2])
+    UPPER_LIMIT = int(sys.argv[3])
+    OUTFILE_PREFIX = sys.argv[4]
 except:
-	print("----------\nUsage: python3 buffer_intervals.py INFILE LOWER_LIMIT UPPER_LIMIT\n----------\n")
+	print("----------\nUsage: python3 buffer_intervals.py INFILE LOWER_LIMIT UPPER_LIMIT OUTFILE_PREFIX\n----------\n")
 
 
 def split_interval(start, end, num):
@@ -30,7 +32,7 @@ def split_interval(start, end, num):
 
 def merge_overlaps():
     command="bedtools merge -d -1 -i targets.bed > merged.bed"
-    subprocess.run(command)
+    subprocess.run(command, shell=True)
 
 
 def write_targets_bed(content):
@@ -39,7 +41,7 @@ def write_targets_bed(content):
 
 
 def clean_temp_files():
-     subprocess.run("rm targets.bed", "rm merged.bed")
+     subprocess.run("rm targets.bed; rm merged.bed", shell=True)
      
 
 def split_and_buffer(infile, lower, upper):
@@ -50,7 +52,7 @@ def split_and_buffer(infile, lower, upper):
             start = int(line.split('\t')[1])
             end = int(line.split('\t')[2])
             length = end - start
-            if length <= lower:
+            if length < lower:
                 buffer = int((lower - length) / 2)
                 new_start = start - buffer
                 new_end = end + buffer
@@ -69,9 +71,36 @@ def split_and_buffer(infile, lower, upper):
 
 
 def check_min_max():
-     with open("merged.bed", "r") as fh:
-          # make df
-          # make length column
-          # sort length column
-          # return min and max
-          pass
+    # make df
+    with open("merged.bed", "r") as fh:
+        df = pd.read_csv(fh, sep="\t", header=None)
+    # make length column
+    df[3] = df[2] - df[1]
+    # return min and max
+    return (df.min(axis=0)[3], df.max(axis=0)[3])
+
+
+def main():
+    # round 1
+    file_content = split_and_buffer(INFILE, LOWER_LIMIT, UPPER_LIMIT)
+    write_targets_bed(file_content)
+    merge_overlaps()
+
+    # iterate if needed
+    while ( check_min_max()[0] < LOWER_LIMIT or check_min_max()[1] > UPPER_LIMIT ):
+        subprocess.run("cat merged.bed | wc -l", shell=True)
+        print(check_min_max())
+        file_content = split_and_buffer("merged.bed", LOWER_LIMIT, UPPER_LIMIT)
+        write_targets_bed(file_content)
+        merge_overlaps()
+
+    # create final output
+    fname = f"{OUTFILE_PREFIX}_{LOWER_LIMIT}_{UPPER_LIMIT}.bed"
+    subprocess.run(f"cp merged.bed {fname}", shell=True)
+
+    # clean up
+    clean_temp_files()
+
+
+if __name__=="__main__":
+    main()
