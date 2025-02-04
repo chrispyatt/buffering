@@ -64,6 +64,9 @@ def split_and_buffer(infile, lower, upper):
                 num_intervals = round(length / upper)
                 if length % upper < lower:
                     num_intervals = num_intervals + 1
+                # prevent infinite loop where num_intervals is 1 even though length > upper
+                elif num_intervals == 1:
+                    num_intervals = 2
                 for interval in split_interval(start, end, num_intervals):
                     new_file_contents = new_file_contents + (f'{chrom}\t{interval[0]}\t{interval[1]}\n')
             else:
@@ -106,10 +109,12 @@ def main():
     merge_overlaps()
 
     # iterate if needed
+    count = 0
     while ( get_stats("merged.bed")[0] < LOWER_LIMIT or get_stats("merged.bed")[1] > UPPER_LIMIT ):
         file_content = split_and_buffer("merged.bed", LOWER_LIMIT, UPPER_LIMIT)
         write_targets_bed(file_content)
         merge_overlaps()
+        count = count + 1
 
     # report final output stats
     stats = get_stats("merged.bed")
@@ -120,6 +125,7 @@ def main():
         f"\tMean: {stats[2]}\n"
         f"\tMedian: {stats[3]}\n"
         f"\tStd Deviation: {stats[4]}\n"
+        f"\nIterations required for calculation: {count}\n"
     )
 
     # create final output
