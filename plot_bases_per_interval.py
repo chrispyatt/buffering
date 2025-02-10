@@ -56,13 +56,15 @@ def make_plot(df):
 
 def main():
 	dfs = []
-	for file in sys.argv[1:]:
-		limits = re.split("_|\.", file)[1]
-		df = parse_regions_file(file)
-		df_bases = calculate_bases_per_interval(df)
-		df_bases['limits'] = limits
-		dfs.append(df_bases)
-
+	try:
+		for file in sys.argv[1:]:
+			limits = re.split("_|\.", file)[1]
+			df = parse_regions_file(file)
+			df_bases = calculate_bases_per_interval(df)
+			df_bases['limits'] = limits
+			dfs.append(df_bases)
+	except:
+		print("----------\nUsage: python3 plot_bases_per_interval.py REGIONS_FILE(s)\n----------\n")
 
 	big_df = pd.concat(dfs)
 
