@@ -84,9 +84,9 @@ def get_stats(bed_file):
     # calculate stats
     min = df.min(axis=0)[3]
     max = df.max(axis=0)[3]
-    mean = df[3].mean(axis=0)
-    median = df[3].median(axis=0)
-    std_dev = df[3].std(axis=0)
+    mean = "{:.0f}".format(df[3].mean(axis=0))
+    median = "{:.0f}".format(df[3].median(axis=0))
+    std_dev = "{:.0f}".format(df[3].std(axis=0))
     # return stats
     return (min, max, mean, median, std_dev)
 
