@@ -1,7 +1,7 @@
 '''
 Author: Chris Pyatt
 
-Script to iteratively split, merge, & buffer an intervals BED file to conform to given minima and maxima
+Script to iteratively split, merge, & buffer an intervals BED file to conform to given insert size and maximum length
 '''
 
 # read capture bed in
@@ -12,11 +12,11 @@ import pandas as pd
 
 try:
     INFILE = sys.argv[1]
-    LOWER_LIMIT = int(sys.argv[2])
+    INSERT_SIZE = int(sys.argv[2])
     UPPER_LIMIT = int(sys.argv[3])
     OUTFILE_PREFIX = sys.argv[4]
 except:
-	print("----------\nUsage: python3 buffer_intervals.py INFILE LOWER_LIMIT UPPER_LIMIT OUTFILE_PREFIX\n----------\n")
+	print("----------\nUsage: python3 buffer_intervals.py INFILE INSERT_SIZE UPPER_LIMIT OUTFILE_PREFIX\n----------\n")
 
 
 def split_interval(start, end, num):
@@ -44,33 +44,32 @@ def clean_temp_files():
      subprocess.run("rm targets.bed; rm merged.bed", shell=True)
      
 
-def split_and_buffer(infile, lower, upper):
+def split_and_buffer(infile, buffer, upper):
     new_file_contents = ""
     with open(infile, 'r') as fh:
         for line in fh:
             chrom = line.split('\t')[0]
             start = int(line.split('\t')[1])
             end = int(line.split('\t')[2])
-            length = end - start
-            if length < lower:
-                buffer = int((lower - length) / 2)
-                # avoid infinite loop when buffer ends up being zero (because length is 1 less than lower)
-                if buffer < 1:
-                    buffer = 1
-                new_start = start - buffer
-                new_end = end + buffer
-                new_file_contents = new_file_contents + (f'{chrom}\t{new_start}\t{new_end}\n')
-            elif length > upper:
+            # buffer all intervals
+            if buffer < 1:
+                buffer = 1
+            buffered_start = start - buffer
+            buffered_end = end + buffer
+            # split larger intervals
+            length = buffered_end - buffered_start
+            if length > upper:
                 num_intervals = round(length / upper)
-                if length % upper < lower:
+                if length % upper < (buffer * 2):
                     num_intervals = num_intervals + 1
                 # prevent infinite loop where num_intervals is 1 even though length > upper
                 elif num_intervals == 1:
                     num_intervals = 2
-                for interval in split_interval(start, end, num_intervals):
-                    new_file_contents = new_file_contents + (f'{chrom}\t{interval[0]}\t{interval[1]}\n')
+                for interval in split_interval(buffered_start, buffered_end, num_intervals):
+                    new_line = f'{chrom}\t{interval[0]}\t{interval[1]}\n'
             else:
-                new_file_contents = new_file_contents + (f'{chrom}\t{start}\t{end}\n')
+                new_line = f'{chrom}\t{buffered_start}\t{buffered_end}\n'
+            new_file_contents = new_file_contents + new_line
 
     new_file_contents = new_file_contents.strip()
     return new_file_contents
@@ -104,14 +103,14 @@ def main():
         f"\tStd Deviation: {stats[4]}\n"
     )
     # round 1
-    file_content = split_and_buffer(INFILE, LOWER_LIMIT, UPPER_LIMIT)
+    file_content = split_and_buffer(INFILE, INSERT_SIZE, UPPER_LIMIT)
     write_targets_bed(file_content)
     merge_overlaps()
 
     # iterate if needed
     count = 0
-    while ( get_stats("merged.bed")[0] < LOWER_LIMIT or get_stats("merged.bed")[1] > UPPER_LIMIT ):
-        file_content = split_and_buffer("merged.bed", LOWER_LIMIT, UPPER_LIMIT)
+    while ( get_stats("merged.bed")[1] > UPPER_LIMIT ):
+        file_content = split_and_buffer("merged.bed", INSERT_SIZE, UPPER_LIMIT)
         write_targets_bed(file_content)
         merge_overlaps()
         count = count + 1
@@ -129,7 +128,7 @@ def main():
     )
 
     # create final output
-    fname = f"{OUTFILE_PREFIX}_{LOWER_LIMIT}_{UPPER_LIMIT}.bed"
+    fname = f"{OUTFILE_PREFIX}_{INSERT_SIZE}_{UPPER_LIMIT}.bed"
     subprocess.run(f"cp merged.bed {fname}", shell=True)
 
     # clean up
