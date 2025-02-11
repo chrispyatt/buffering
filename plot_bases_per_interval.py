@@ -2,8 +2,8 @@
 Author: Chris Pyatt
 
 Script that takes mosdepth output regions bed files, calculates total bases per interval, and plots by chromosome.
-Assumes all regions bed files are from the same sample and are named regions_[limits].bed.gz, where the limits are
-the upper and lower bounds of the interval lengths, e.g. regions_600-1500.bed.gz
+Assumes all regions bed files are from the same sample and are named regions_[insert size]_[upper limit].bed.gz, 
+e.g. regions_250_1500.bed.gz
 '''
 
 
@@ -13,9 +13,9 @@ import sys
 import gzip
 import re
 
-# regions files must be named "regions_[limits].bed.gz"
-# e.g. "regions_600-1500.bed.gz" where 600 is the lower limit of
-# interval lengths associated with that file
+# regions files must be named "regions_[insert_size]_[maximum].bed.gz"
+# e.g. "regions_250_1500.bed.gz" where 250 is the insert size and 1500
+# is the maximum interval length associated with that file
 
 
 def parse_regions_file(regions_file):
