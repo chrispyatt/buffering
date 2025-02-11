@@ -54,6 +54,18 @@ def make_plot(df):
 	fig.legend(handles, labels, loc='upper right')
 
 
+def get_stats(df):
+    # calculate stats
+    min = df.min(axis=0)['bases']
+    max = df.max(axis=0)['bases']
+    mean = "{:.0f}".format(df['bases'].mean(axis=0))
+    median = "{:.0f}".format(df['bases'].median(axis=0))
+    std_dev = "{:.0f}".format(df['bases'].std(axis=0))
+    # return stats
+    return (min, max, mean, median, std_dev)
+
+
+
 def main():
 	dfs = []
 	try:
@@ -63,6 +75,15 @@ def main():
 			df_bases = calculate_bases_per_interval(df)
 			df_bases['limits'] = limits
 			dfs.append(df_bases)
+			stats = get_stats(df_bases)
+			print(
+				f"{limits} df stats:\n"
+				f"\tMin: {stats[0]}\n"
+				f"\tMax: {stats[1]}\n"
+				f"\tMean: {stats[2]}\n"
+				f"\tMedian: {stats[3]}\n"
+				f"\tStd Deviation: {stats[4]}\n"
+			)
 	except:
 		print("----------\nUsage: python3 plot_bases_per_interval.py REGIONS_FILE(s)\n----------\n")
 
