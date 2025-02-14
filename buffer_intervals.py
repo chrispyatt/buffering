@@ -47,14 +47,13 @@ def merge_overlaps():
 
 def write_targets_bed(content):
     # write amended data to intermediate bed file
-     with open("targets.bed", "w") as fh:
-        content.to_csv(fh, sep="\t", header=False, index=False, columns=['chrom', 'start', 'end'])
+    content.to_csv("targets.bed", sep="\t", header=False, index=False, columns=['chrom', 'start', 'end'])
 
 
 def clean_temp_files():
     # remove intermediate files
      subprocess.run("rm targets.bed; rm merged.bed", shell=True)
-     
+
 
 def buffer_intervals(infile, buffer):
     # read in bed file
