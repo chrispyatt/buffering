@@ -14,7 +14,12 @@ except:
 def parse_regions_file(regions_file):
 	# read regions bed into dataframe & ensure chromosome column is string
 	with gzip.open(regions_file, 'rb') as fh:
-		df = pd.read_csv(fh, sep="\t", header=None, names=["chrom","start","end","coverage"])
+		df = pd.read_csv(
+                fh, sep="\t",
+                header=None,
+                names=["chrom","start","end","coverage"],
+                dtype={'chrom': 'str'}
+                )
 	df['chrom'] = df['chrom'].astype(str)
 	return df
 

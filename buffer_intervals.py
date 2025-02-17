@@ -57,7 +57,7 @@ def clean_temp_files():
 
 def buffer_intervals(infile, buffer):
     # read in bed file
-    df = pd.read_csv(infile, sep="\t", header=None, names=["chrom", "start", "end"])
+    df = pd.read_csv(infile, sep="\t", header=None, names=["chrom", "start", "end"], dtype={'chrom': 'str'})
     df['chrom'] = df['chrom'].astype(str)
     # buffer all intervals
     if buffer < 1:
