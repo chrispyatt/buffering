@@ -48,7 +48,7 @@ def calculate_bases_per_interval(regions_df):
 
 def remove_excluded_regions(df, excluded_regions):
 	# remove excluded regions from dataframe
-	excluded = pd.read_csv(excluded_regions, sep="\t", header=None, names=["chrom","start","end","name","quality","strand"])
+	excluded = pd.read_csv(excluded_regions, sep="\t", header=None, names=["chrom","start","end","name","quality","strand"], dtype={'chrom': 'str'})
 	df['chrom'] = df['chrom'].astype(str)
 	# merge excluded regions with regions df
 	merged = pd.merge(df, excluded, how='outer', indicator=True)
