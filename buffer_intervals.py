@@ -10,6 +10,7 @@ import sys
 import subprocess
 import pandas as pd
 import time
+import math
 
 try:
     INFILE = sys.argv[1]
@@ -22,19 +23,14 @@ except:
 
 def split_interval(chrom, start, end, buffer, upper):
     length = end - start
-    num_intervals = round(length / upper)
-    if length % upper < (buffer * 2):
-        num_intervals = num_intervals + 1
-    # prevent infinite loop where num_intervals is 1 even though length > upper
-    if num_intervals == 1:
-        num_intervals = 2
-    boundary = round(length / num_intervals)
-    intervals = [(start, start+boundary)]
-    while intervals[-1][1]+1 < end:
-        interval_start = intervals[-1][1] + 1
-        interval_end = interval_start + boundary
-        intervals.append((interval_start, interval_end))
-    df = pd.DataFrame(intervals, columns=['start', 'end'])
+    num_intervals = math.ceil(length / upper)
+    new_interval_length = math.ceil(length / num_intervals)
+    new_intervals = [(start, start+new_interval_length)]
+    while new_intervals[-1][1] < end:
+        interval_start = new_intervals[-1][1]
+        interval_end = interval_start + new_interval_length
+        new_intervals.append((interval_start, interval_end))
+    df = pd.DataFrame(new_intervals, columns=['start', 'end'])
     df['chrom'] = chrom
     return df
 
@@ -109,29 +105,17 @@ def main():
         f"\tMedian: {stats[3]}\n"
         f"\tStd Deviation: {stats[4]}\n"
     )
-    # round 1
+    # buffer, merge, then split intervals
     start = time.time()
     buffered_intervals = buffer_intervals(INFILE, INSERT_SIZE)
-    file_content = split_intervals(buffered_intervals, INSERT_SIZE, UPPER_LIMIT)
-    write_targets_bed(file_content)
+    write_targets_bed(buffered_intervals)
     merge_overlaps()
+    df_merged = pd.read_csv("merged.bed", sep="\t", header=None, names=["chrom", "start", "end"])
+    write_targets_bed(split_intervals(df_merged, INSERT_SIZE, UPPER_LIMIT))
     end = time.time()
     elapsed = "{:.2f}".format(end - start)
-    print(f"Time elapsed iteration 1: {elapsed} seconds")
-    # iterate if needed
-    count = 1
-    while (get_stats("merged.bed")[1] > UPPER_LIMIT):
-        start = time.time()
-        df_merged = pd.read_csv("merged.bed", sep="\t", header=None, names=["chrom", "start", "end"])
-        file_content = split_intervals(df_merged, INSERT_SIZE, UPPER_LIMIT)
-        write_targets_bed(file_content)
-        merge_overlaps()
-        count = count + 1
-        end = time.time()
-        elapsed = "{:.2f}".format(end - start)
-        print(f"Time elapsed iteration {count}: {elapsed} seconds")
-    # report final output stats
-    stats = get_stats("merged.bed")
+    print(f"Time elapsed: {elapsed} seconds")
+    stats = get_stats("targets.bed")
     print(
         "\nOutput file stats:\n"
         f"\tMin: {stats[0]}\n"
@@ -139,11 +123,10 @@ def main():
         f"\tMean: {stats[2]}\n"
         f"\tMedian: {stats[3]}\n"
         f"\tStd Deviation: {stats[4]}\n"
-        f"\nIterations required for calculation: {count}\n"
     )
     # create final output
     fname = f"{OUTFILE_PREFIX}_{INSERT_SIZE}_{UPPER_LIMIT}.bed"
-    subprocess.run(f"cp merged.bed {fname}", shell=True)
+    subprocess.run(f"cp targets.bed {fname}", shell=True)
     # clean up
     clean_temp_files()
 

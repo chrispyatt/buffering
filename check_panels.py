@@ -39,7 +39,7 @@ def subset_regions(df, threshold):
 
 def intersect_panels():
     # merge overlapping intervals
-    command = f"bedtools intersect -a {PANELS} -b annotated_regions.bed"
+    command = f"bedtools intersect -u -a {PANELS} -b annotated_regions.bed"
     subprocess.run(command, shell=True)
 
 
