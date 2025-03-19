@@ -21,7 +21,7 @@ except:
 	print("----------\nUsage: python3 buffer_intervals.py INFILE INSERT_SIZE UPPER_LIMIT OUTFILE_PREFIX\n----------\n")
 
 
-def split_interval(chrom, start, end, buffer, upper):
+def split_interval(chrom, start, end, upper):
     length = end - start
     num_intervals = math.ceil(length / upper)
     new_interval_length = math.ceil(length / num_intervals)
@@ -29,6 +29,9 @@ def split_interval(chrom, start, end, buffer, upper):
     while new_intervals[-1][1] < end:
         interval_start = new_intervals[-1][1]
         interval_end = interval_start + new_interval_length
+        # make sure I don't round up past the end
+        if interval_end > end:
+            interval_end = end
         new_intervals.append((interval_start, interval_end))
     df = pd.DataFrame(new_intervals, columns=['start', 'end'])
     df['chrom'] = chrom
@@ -66,11 +69,11 @@ def buffer_intervals(infile, buffer):
     return df
 
 
-def split_intervals(df, buffer, upper):
+def split_intervals(df, upper):
     # split larger intervals
     df_long = df[df['end'] - df['start'] > upper]
     df_ok = df[df['end'] - df['start'] <= upper]
-    df_split = pd.concat(df_long.apply(lambda x: split_interval(x.chrom, x.start, x.end, buffer, upper), axis=1).tolist())
+    df_split = pd.concat(df_long.apply(lambda x: split_interval(x.chrom, x.start, x.end, upper), axis=1).tolist())
     # add split intervals back onto those below upper limit
     df_ok = pd.concat([df_ok, df_split])
     # sort the dataframe & reset indices
@@ -111,7 +114,7 @@ def main():
     write_targets_bed(buffered_intervals)
     merge_overlaps()
     df_merged = pd.read_csv("merged.bed", sep="\t", header=None, names=["chrom", "start", "end"])
-    write_targets_bed(split_intervals(df_merged, INSERT_SIZE, UPPER_LIMIT))
+    write_targets_bed(split_intervals(df_merged, UPPER_LIMIT))
     end = time.time()
     elapsed = "{:.2f}".format(end - start)
     print(f"Time elapsed: {elapsed} seconds")
